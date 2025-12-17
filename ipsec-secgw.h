@@ -180,9 +180,10 @@ core_stats_update_rx(int n, struct rte_mbuf **pkts){
     core_statistics[lcore_id].rx_call++;
     if (n == MAX_PKT_BURST)
         core_statistics[lcore_id].burst_rx += n;
-
-    for (uint16_t i = 0; i < n; i++) {
-        core_statistics[lcore_id].rx_bytes += pkts[i]->pkt_len;
+    if (pkts != NULL) {
+        for (int i = 0; i < n; i++) {
+            core_statistics[lcore_id].rx_bytes += pkts[i]->pkt_len;
+        }
     }
 }
 

@@ -955,7 +955,7 @@ ipsec_ev_vector_process(struct lcore_conf_ev_tx_int_port_wrkr *lconf,
     pkt = vec->mbufs[0];
 
     ev_vector_attr_init(vec);
-    core_stats_update_rx(vec->nb_elem);
+    core_stats_update_rx(vec->nb_elem, NULL);
 
     if (is_unprotected_port(pkt->port))
         ret = process_ipsec_ev_inbound_vector(&lconf->inbound,
@@ -1356,7 +1356,7 @@ ipsec_wrkr_non_burst_int_port_app_mode(struct eh_event_link_info *links,
                 ipsec_ev_vector_process(&lconf, links, &ev);
                 continue;
             case RTE_EVENT_TYPE_ETHDEV:
-                core_stats_update_rx(1);
+                core_stats_update_rx(1, NULL);
                 if (is_unprotected_port(ev.mbuf->port))
                     ret = process_ipsec_ev_inbound(&lconf.inbound,
                                                    &lconf.rt, links, &ev);
@@ -1626,7 +1626,7 @@ ipsec_poll_mode_wrkr_inl_pr(void) {
             if (nb_rx <= 0)
                 continue;
 
-            core_stats_update_rx(nb_rx);
+            core_stats_update_rx(nb_rx, NULL);
 
             prepare_traffic(rxql[i].sec_ctx, pkts, &trf, nb_rx);
 
@@ -1753,7 +1753,7 @@ ipsec_poll_mode_wrkr_inl_pr_ss(void) {
             if (nb_rx <= 0)
                 continue;
 
-            core_stats_update_rx(nb_rx);
+            core_stats_update_rx(nb_rx, NULL);
 
             if (is_unprotected_port(portid)) {
                 /* Nothing much to do for inbound inline
