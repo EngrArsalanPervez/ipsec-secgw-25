@@ -214,6 +214,7 @@ fail:
 }
 
 void insertNetstatToDB(struct netstatStruct *netstatData) {
+    return;
     bson_error_t error;
     bson_oid_t oid;
     bson_t *doc = bson_new();

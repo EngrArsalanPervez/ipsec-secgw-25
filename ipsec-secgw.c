@@ -792,17 +792,34 @@ static void send_packets_eth(struct rte_mbuf *pkts[], uint8_t port,
 	// ports->tx_stats.tx_bytes[port] += (*pkts)->pkt_len;
 }
 
+// ./IPE_71.cfg
 #define MY_MAC0 0x00
 #define MY_MAC1 0x90
 #define MY_MAC2 0x0B
 #define MY_MAC3 0xD7
-#define MY_MAC4 0xFC
-#define MY_MAC5 0x8B
+#define MY_MAC4 0xFD
+#define MY_MAC5 0x67
+
+#define MY_IP0 192
+#define MY_IP1 168
+#define MY_IP2 105
+#define MY_IP3 1
+
+
+// ./IPE_69.cfg
+/*
+#define MY_MAC0 0x00
+#define MY_MAC1 0x90
+#define MY_MAC2 0x0B
+#define MY_MAC3 0xD7
+#define MY_MAC4 0xFD
+#define MY_MAC5 0x63
 
 #define MY_IP0 192
 #define MY_IP1 168
 #define MY_IP2 115
 #define MY_IP3 1
+*/
 
 static void handle_packet_arp(struct rte_mbuf *buf)
 {
