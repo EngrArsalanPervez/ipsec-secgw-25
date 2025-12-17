@@ -14,8 +14,8 @@
 #include <rte_ip6.h>
 
 struct parse_status {
-	int status;
-	char parse_msg[256];
+    int status;
+    char parse_msg[256];
 };
 
 #define	APP_CHECK(exp, st, fmt, ...)					\
@@ -38,15 +38,14 @@ do {									\
 		tokens[index], ref)
 
 static inline int
-is_str_num(const char *str)
-{
-	uint32_t i;
+is_str_num(const char *str) {
+    uint32_t i;
 
-	for (i = 0; i < strlen(str); i++)
-		if (!isdigit(str[i]))
-			return -1;
+    for (i = 0; i < strlen(str); i++)
+        if (!isdigit(str[i]))
+            return -1;
 
-	return 0;
+    return 0;
 }
 
 #define APP_CHECK_TOKEN_IS_NUM(tokens, index, status)			\
@@ -75,25 +74,25 @@ sp4_sort_arr(void);
 
 void
 parse_sp4_tokens(char **tokens, uint32_t n_tokens,
-	struct parse_status *status);
+                 struct parse_status *status);
 
 void
 sp6_sort_arr(void);
 
 void
 parse_sp6_tokens(char **tokens, uint32_t n_tokens,
-	struct parse_status *status);
+                 struct parse_status *status);
 
 void
 sa_sort_arr(void);
 
 void
 parse_sa_tokens(char **tokens, uint32_t n_tokens,
-	struct parse_status *status);
+                struct parse_status *status);
 
 void
 parse_rt_tokens(char **tokens, uint32_t n_tokens,
-	struct parse_status *status);
+                struct parse_status *status);
 
 int
 parse_cfg_file(const char *cfg_filename);

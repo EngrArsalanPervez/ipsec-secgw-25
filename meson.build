@@ -9,25 +9,25 @@
 deps += ['security', 'lpm', 'acl', 'hash', 'ip_frag', 'ipsec', 'eventdev', 'telemetry']
 allow_experimental_apis = true
 sources = files(
-        'esp.c',
-        'event_helper.c',
-        'flow.c',
-        'ipsec.c',
-        'ipsec_process.c',
-        'ipsec-secgw.c',
-        'ipsec_worker.c',
-        'parser.c',
-        'rt.c',
-        'sa.c',
-        'sad.c',
-        'sp4.c',
-        'sp6.c',
+    'esp.c',
+    'event_helper.c',
+    'flow.c',
+    'ipsec.c',
+    'ipsec_process.c',
+    'ipsec-secgw.c',
+    'ipsec_worker.c',
+    'parser.c',
+    'rt.c',
+    'sa.c',
+    'sad.c',
+    'sp4.c',
+    'sp6.c',
 )
 
 cflags += no_wvla_cflag
 
 app_cflags = ['-Wno-address-of-packed-member']
-foreach flag:app_cflags
+foreach flag : app_cflags
     if cc.has_argument(flag)
         cflags += flag
     endif

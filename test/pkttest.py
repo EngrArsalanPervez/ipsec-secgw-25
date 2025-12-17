@@ -8,18 +8,15 @@ import struct
 import sys
 import unittest
 
-
 if sys.version_info < (3, 0):
     print("Python3 is required to run this script")
     sys.exit(1)
-
 
 try:
     from scapy.all import Ether
 except ImportError:
     print("Scapy module is required")
     sys.exit(1)
-
 
 PKTTEST_REQ = [
     "scapy>=2.4.3",
@@ -47,6 +44,7 @@ class Interface(object):
     MAX_PACKET_SIZE = 1280
     IOCTL_GET_INFO = 0x8927
     SOCKET_TIMEOUT = 0.5
+
     def __init__(self, ifname):
         self.name = ifname
 
@@ -56,7 +54,8 @@ class Interface(object):
         self.s.bind((self.name, 0, socket.PACKET_OTHERHOST))
 
         # get interface MAC address
-        info = fcntl.ioctl(self.s.fileno(), Interface.IOCTL_GET_INFO,  struct.pack('256s', bytes(ifname[:15], encoding='ascii')))
+        info = fcntl.ioctl(self.s.fileno(), Interface.IOCTL_GET_INFO,
+                           struct.pack('256s', bytes(ifname[:15], encoding='ascii')))
         self.mac = ':'.join(['%02x' % i for i in info[18:24]])
 
     def __del__(self):
@@ -64,7 +63,7 @@ class Interface(object):
 
     def send_l3packet(self, pkt, mac):
         e = Ether(src=self.mac, dst=mac)
-        self.send_packet(e/pkt)
+        self.send_packet(e / pkt)
 
     def send_packet(self, pkt):
         self.send_bytes(bytes(pkt))

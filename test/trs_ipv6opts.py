@@ -5,11 +5,10 @@ from scapy.all import *
 import unittest
 import pkttest
 
-
-SRC_ADDR  = "1111:0000:0000:0000:0000:0000:0000:0001"
-DST_ADDR  = "2222:0000:0000:0000:0000:0000:0000:0001"
-SRC_NET   = "1111:0000:0000:0000:0000:0000:0000:0000/64"
-DST_NET   = "2222:0000:0000:0000:0000:0000:0000:0000/64"
+SRC_ADDR = "1111:0000:0000:0000:0000:0000:0000:0001"
+DST_ADDR = "2222:0000:0000:0000:0000:0000:0000:0001"
+SRC_NET = "1111:0000:0000:0000:0000:0000:0000:0000/64"
+DST_NET = "2222:0000:0000:0000:0000:0000:0000:0000/64"
 
 
 def config():
@@ -41,7 +40,7 @@ class TestTransportWithIPv6Ext(unittest.TestCase):
         esp = pkt[ESP]
 
         # decrypt dummy packet with no extensions
-        d = sa.decrypt(IPv6()/esp)
+        d = sa.decrypt(IPv6() / esp)
 
         # fix 'next header' in the preceding header of the original
         # packet and remove ESP
@@ -49,7 +48,7 @@ class TestTransportWithIPv6Ext(unittest.TestCase):
         pkt[ESP].underlayer.remove_payload()
 
         # combine L3 header with decrypted payload
-        npkt = pkt/d[IPv6].payload
+        npkt = pkt / d[IPv6].payload
 
         # fix length
         npkt[IPv6].plen = d[IPv6].plen + len(pkt[IPv6].payload)
@@ -63,7 +62,7 @@ class TestTransportWithIPv6Ext(unittest.TestCase):
 
     def test_outb_ipv6_noopt(self):
         pkt = IPv6(src=SRC_ADDR, dst=DST_ADDR)
-        pkt /= UDP(sport=123,dport=456)/Raw(load="abc")
+        pkt /= UDP(sport=123, dport=456) / Raw(load="abc")
 
         # send and check response
         resp = self.px.xfer_unprotected(pkt)
@@ -88,9 +87,9 @@ class TestTransportWithIPv6Ext(unittest.TestCase):
 
         pkt = IPv6(src=SRC_ADDR, dst=DST_ADDR)
         pkt /= IPv6ExtHdrHopByHop(options=hoptions)
-        pkt /= IPv6ExtHdrRouting(addresses=["3333::3","4444::4"])
+        pkt /= IPv6ExtHdrRouting(addresses=["3333::3", "4444::4"])
         pkt /= IPv6ExtHdrDestOpt(options=doptions)
-        pkt /= UDP(sport=123,dport=456)/Raw(load="abc")
+        pkt /= UDP(sport=123, dport=456) / Raw(load="abc")
 
         # send and check response
         resp = self.px.xfer_unprotected(pkt)
@@ -119,7 +118,7 @@ class TestTransportWithIPv6Ext(unittest.TestCase):
     def test_inb_ipv6_noopt(self):
         # encrypt and send raw UDP packet
         pkt = IPv6(src=DST_ADDR, dst=SRC_ADDR)
-        pkt /= UDP(sport=123,dport=456)/Raw(load="abc")
+        pkt /= UDP(sport=123, dport=456) / Raw(load="abc")
         e = self.inb_sa.encrypt(pkt)
 
         # send and check response
@@ -143,9 +142,9 @@ class TestTransportWithIPv6Ext(unittest.TestCase):
         # prepare packet with options
         pkt = IPv6(src=DST_ADDR, dst=SRC_ADDR)
         pkt /= IPv6ExtHdrHopByHop(options=hoptions)
-        pkt /= IPv6ExtHdrRouting(addresses=["3333::3","4444::4"])
+        pkt /= IPv6ExtHdrRouting(addresses=["3333::3", "4444::4"])
         pkt /= IPv6ExtHdrDestOpt(options=doptions)
-        pkt /= UDP(sport=123,dport=456)/Raw(load="abc")
+        pkt /= UDP(sport=123, dport=456) / Raw(load="abc")
         e = self.inb_sa.encrypt(pkt)
 
         # self encrypted packet and check response
@@ -162,11 +161,11 @@ class TestTransportWithIPv6Ext(unittest.TestCase):
 
     def test_inb_ipv6_frag(self):
         # prepare ESP payload
-        pkt = IPv6()/UDP(sport=123,dport=456)/Raw(load="abc")
+        pkt = IPv6() / UDP(sport=123, dport=456) / Raw(load="abc")
         e = self.inb_sa.encrypt(pkt)
 
         # craft and send inbound packet
-        e = IPv6(src=DST_ADDR, dst=SRC_ADDR)/IPv6ExtHdrFragment()/e[IPv6].payload
+        e = IPv6(src=DST_ADDR, dst=SRC_ADDR) / IPv6ExtHdrFragment() / e[IPv6].payload
         resp = self.px.xfer_protected(e)
 
         # check response

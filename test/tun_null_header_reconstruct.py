@@ -6,25 +6,26 @@ from scapy.all import *
 import unittest
 import pkttest
 
-#{ipv4{ipv4}} test
+# {ipv4{ipv4}} test
 SRC_ADDR_IPV4_1 = "192.168.1.1"
 DST_ADDR_IPV4_1 = "192.168.2.1"
 
-#{ipv6{ipv6}} test
+# {ipv6{ipv6}} test
 SRC_ADDR_IPV6_1 = "1111:0000:0000:0000:0000:0000:0000:0001"
 DST_ADDR_IPV6_1 = "2222:0000:0000:0000:0000:0000:0000:0001"
 
-#{ipv4{ipv6}} test
+# {ipv4{ipv6}} test
 SRC_ADDR_IPV4_2 = "192.168.11.1"
 DST_ADDR_IPV4_2 = "192.168.12.1"
 SRC_ADDR_IPV6_2 = "1111:0000:0000:0000:0000:0000:0001:0001"
 DST_ADDR_IPV6_2 = "2222:0000:0000:0000:0000:0000:0001:0001"
 
-#{ipv6{ipv4}} test
+# {ipv6{ipv4}} test
 SRC_ADDR_IPV4_3 = "192.168.21.1"
 DST_ADDR_IPV4_3 = "192.168.22.1"
 SRC_ADDR_IPV6_3 = "1111:0000:0000:0000:0000:0001:0001:0001"
 DST_ADDR_IPV6_3 = "2222:0000:0000:0000:0000:0001:0001:0001"
+
 
 def config():
     return """
@@ -108,35 +109,37 @@ rt ipv6 dst {11}/128 port 0
            SRC_ADDR_IPV6_2, DST_ADDR_IPV6_2, SRC_ADDR_IPV4_2, DST_ADDR_IPV4_2,
            SRC_ADDR_IPV4_3, DST_ADDR_IPV4_3, SRC_ADDR_IPV6_3, DST_ADDR_IPV6_3)
 
-ECN_ECT0    = 0x02
-ECN_ECT1    = 0x01
-ECN_CE      = 0x03
-DSCP_1      = 0x04
-DSCP_3F     = 0xFC
+
+ECN_ECT0 = 0x02
+ECN_ECT1 = 0x01
+ECN_CE = 0x03
+DSCP_1 = 0x04
+DSCP_3F = 0xFC
+
 
 class TestTunnelHeaderReconstruct(unittest.TestCase):
     def setUp(self):
         self.px = pkttest.PacketXfer()
         th = IP(src=DST_ADDR_IPV4_1, dst=SRC_ADDR_IPV4_1)
-        self.sa_ipv4v4 = SecurityAssociation(ESP, spi=6, tunnel_header = th)
+        self.sa_ipv4v4 = SecurityAssociation(ESP, spi=6, tunnel_header=th)
 
         th = IPv6(src=DST_ADDR_IPV6_1, dst=SRC_ADDR_IPV6_1)
-        self.sa_ipv6v6 = SecurityAssociation(ESP, spi=8, tunnel_header = th)
+        self.sa_ipv6v6 = SecurityAssociation(ESP, spi=8, tunnel_header=th)
 
         th = IP(src=DST_ADDR_IPV4_2, dst=SRC_ADDR_IPV4_2)
-        self.sa_ipv4v6 = SecurityAssociation(ESP, spi=10, tunnel_header = th)
+        self.sa_ipv4v6 = SecurityAssociation(ESP, spi=10, tunnel_header=th)
 
         th = IPv6(src=DST_ADDR_IPV6_3, dst=SRC_ADDR_IPV6_3)
-        self.sa_ipv6v4 = SecurityAssociation(ESP, spi=12, tunnel_header = th)
+        self.sa_ipv6v4 = SecurityAssociation(ESP, spi=12, tunnel_header=th)
 
     def gen_pkt_plain_ipv4(self, src, dst, tos):
         pkt = IP(src=src, dst=dst, tos=tos)
-        pkt /= UDP(sport=123,dport=456)/Raw(load="abc")
+        pkt /= UDP(sport=123, dport=456) / Raw(load="abc")
         return pkt
 
     def gen_pkt_plain_ipv6(self, src, dst, tc):
         pkt = IPv6(src=src, dst=dst, tc=tc)
-        pkt /= UDP(sport=123,dport=456)/Raw(load="abc")
+        pkt /= UDP(sport=123, dport=456) / Raw(load="abc")
         return pkt
 
     def gen_pkt_tun_ipv4v4(self, tos_outter, tos_inner):
@@ -175,7 +178,7 @@ class TestTunnelHeaderReconstruct(unittest.TestCase):
         pkt[IPv6].tc = tc_outter
         return pkt
 
-#RFC4301 5.1.2.1 & 5.1.2.2, outbound packets shall be copied ECN field
+    # RFC4301 5.1.2.1 & 5.1.2.2, outbound packets shall be copied ECN field
     def test_outb_ipv4v4_ecn(self):
         pkt = self.gen_pkt_plain_ipv4(SRC_ADDR_IPV4_1, DST_ADDR_IPV4_1,
                                       ECN_ECT1)
@@ -257,10 +260,10 @@ class TestTunnelHeaderReconstruct(unittest.TestCase):
         self.assertEqual(resp[IPv6].nh, socket.IPPROTO_ESP)
         self.assertEqual(resp[IPv6].tc, ECN_CE)
 
-#RFC4301 5.1.2.1 & 5.1.2.2, if outbound packets ECN is CE (0x3), inbound packets
-#ECN is overwritten to CE, otherwise no change
+    # RFC4301 5.1.2.1 & 5.1.2.2, if outbound packets ECN is CE (0x3), inbound packets
+    # ECN is overwritten to CE, otherwise no change
 
-#Outter header not CE, Inner header should be no change
+    # Outter header not CE, Inner header should be no change
     def test_inb_ipv4v4_ecn_inner_no_change(self):
         pkt = self.gen_pkt_tun_ipv4v4(ECN_ECT1, ECN_ECT0)
         resp = self.px.xfer_protected(pkt)
@@ -325,7 +328,7 @@ class TestTunnelHeaderReconstruct(unittest.TestCase):
         self.assertEqual(resp[IP].proto, socket.IPPROTO_UDP)
         self.assertEqual(resp[IP].tos, ECN_CE)
 
-#Outter header CE, Inner header should be changed to CE
+    # Outter header CE, Inner header should be changed to CE
     def test_inb_ipv4v4_ecn_inner_change(self):
         pkt = self.gen_pkt_tun_ipv4v4(ECN_CE, ECN_ECT0)
         resp = self.px.xfer_protected(pkt)
@@ -370,7 +373,7 @@ class TestTunnelHeaderReconstruct(unittest.TestCase):
         self.assertEqual(resp[IP].proto, socket.IPPROTO_UDP)
         self.assertEqual(resp[IP].tos, ECN_CE)
 
-#RFC4301 5.1.2.1.5 Outer DS field should be copied from Inner DS field
+    # RFC4301 5.1.2.1.5 Outer DS field should be copied from Inner DS field
     def test_outb_ipv4v4_dscp(self):
         pkt = self.gen_pkt_plain_ipv4(SRC_ADDR_IPV4_1, DST_ADDR_IPV4_1,
                                       DSCP_1)
@@ -431,7 +434,7 @@ class TestTunnelHeaderReconstruct(unittest.TestCase):
         self.assertEqual(resp[ESP].spi, 11)
         self.assertEqual(resp[IPv6].tc, DSCP_3F)
 
-#RFC4301 5.1.2.1.5 Inner DS field should not be affected by Outer DS field
+    # RFC4301 5.1.2.1.5 Inner DS field should not be affected by Outer DS field
     def test_inb_ipv4v4_dscp(self):
         pkt = self.gen_pkt_tun_ipv4v4(DSCP_3F, DSCP_1)
         resp = self.px.xfer_protected(pkt)
@@ -475,5 +478,6 @@ class TestTunnelHeaderReconstruct(unittest.TestCase):
         resp = self.px.xfer_protected(pkt)
         self.assertEqual(resp[IP].proto, socket.IPPROTO_UDP)
         self.assertEqual(resp[IP].tos, DSCP_3F)
+
 
 pkttest.pkttest()

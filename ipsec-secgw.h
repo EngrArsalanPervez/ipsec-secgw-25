@@ -55,77 +55,77 @@
 #define MBUF_PTYPE_TUNNEL_ESP_IN_UDP (RTE_PTYPE_TUNNEL_ESP | RTE_PTYPE_L4_UDP)
 
 struct __rte_cache_aligned traffic_type {
-	uint32_t num;
-	struct rte_mbuf *pkts[MAX_PKTS];
-	const uint8_t *data[MAX_PKTS];
-	void *saptr[MAX_PKTS];
-	uint32_t res[MAX_PKTS];
+    uint32_t num;
+    struct rte_mbuf *pkts[MAX_PKTS];
+    const uint8_t *data[MAX_PKTS];
+    void *saptr[MAX_PKTS];
+    uint32_t res[MAX_PKTS];
 };
 
 struct ipsec_traffic {
-	struct traffic_type ipsec;
-	struct traffic_type ip4;
-	struct traffic_type ip6;
+    struct traffic_type ipsec;
+    struct traffic_type ip4;
+    struct traffic_type ip6;
 };
 
 /* Fields optimized for devices without burst */
 struct traffic_type_nb {
-	const uint8_t *data;
-	struct rte_mbuf *pkt;
-	uint32_t res;
-	uint32_t num;
+    const uint8_t *data;
+    struct rte_mbuf *pkt;
+    uint32_t res;
+    uint32_t num;
 };
 
 struct ipsec_traffic_nb {
-	struct traffic_type_nb ipsec;
-	struct traffic_type_nb ip4;
-	struct traffic_type_nb ip6;
+    struct traffic_type_nb ipsec;
+    struct traffic_type_nb ip4;
+    struct traffic_type_nb ip6;
 };
 
 /* port/source ethernet addr and destination ethernet addr */
 struct ethaddr_info {
-	struct rte_ether_addr src, dst;
+    struct rte_ether_addr src, dst;
 };
 
 struct ipsec_spd_stats {
-	uint64_t protect;
-	uint64_t bypass;
-	uint64_t discard;
+    uint64_t protect;
+    uint64_t bypass;
+    uint64_t discard;
 };
 
 struct ipsec_sa_stats {
-	uint64_t hit;
-	uint64_t miss;
+    uint64_t hit;
+    uint64_t miss;
 };
 
 struct __rte_cache_aligned ipsec_core_statistics {
-	uint64_t tx;
-	uint64_t rx;
-	uint64_t rx_call;
-	uint64_t tx_call;
-	uint64_t dropped;
-	uint64_t frag_dropped;
-	uint64_t burst_rx;
+    uint64_t tx;
+    uint64_t rx;
+    uint64_t rx_call;
+    uint64_t tx_call;
+    uint64_t dropped;
+    uint64_t frag_dropped;
+    uint64_t burst_rx;
 
-	struct {
-		struct ipsec_spd_stats spd4;
-		struct ipsec_spd_stats spd6;
-		struct ipsec_sa_stats sad;
-	} outbound;
+    struct {
+        struct ipsec_spd_stats spd4;
+        struct ipsec_spd_stats spd6;
+        struct ipsec_sa_stats sad;
+    } outbound;
 
-	struct {
-		struct ipsec_spd_stats spd4;
-		struct ipsec_spd_stats spd6;
-		struct ipsec_sa_stats sad;
-	} inbound;
+    struct {
+        struct ipsec_spd_stats spd4;
+        struct ipsec_spd_stats spd6;
+        struct ipsec_sa_stats sad;
+    } inbound;
 
-	struct {
-		uint64_t miss;
-	} lpm4;
+    struct {
+        uint64_t miss;
+    } lpm4;
 
-	struct {
-		uint64_t miss;
-	} lpm6;
+    struct {
+        uint64_t miss;
+    } lpm6;
 };
 
 extern struct ipsec_core_statistics core_statistics[RTE_MAX_LCORE];
@@ -160,80 +160,72 @@ extern uint32_t qp_desc_nb;
 extern uint16_t wrkr_flags;
 
 static inline uint8_t
-is_unprotected_port(uint16_t port_id)
-{
-	return unprotected_port_mask & (1 << port_id);
+is_unprotected_port(uint16_t port_id) {
+    return unprotected_port_mask & (1 << port_id);
 }
 
 static inline void
-core_stats_update_rx(int n)
-{
-	int lcore_id = rte_lcore_id();
-	core_statistics[lcore_id].rx += n;
-	core_statistics[lcore_id].rx_call++;
-	if (n == MAX_PKT_BURST)
-		core_statistics[lcore_id].burst_rx += n;
+core_stats_update_rx(int n) {
+    int lcore_id = rte_lcore_id();
+    core_statistics[lcore_id].rx += n;
+    core_statistics[lcore_id].rx_call++;
+    if (n == MAX_PKT_BURST)
+        core_statistics[lcore_id].burst_rx += n;
 }
 
 static inline void
-core_stats_update_tx(int n)
-{
-	int lcore_id = rte_lcore_id();
-	core_statistics[lcore_id].tx += n;
-	core_statistics[lcore_id].tx_call++;
+core_stats_update_tx(int n) {
+    int lcore_id = rte_lcore_id();
+    core_statistics[lcore_id].tx += n;
+    core_statistics[lcore_id].tx_call++;
 }
 
 static inline void
-core_stats_update_drop(int n)
-{
-	int lcore_id = rte_lcore_id();
-	core_statistics[lcore_id].dropped += n;
+core_stats_update_drop(int n) {
+    int lcore_id = rte_lcore_id();
+    core_statistics[lcore_id].dropped += n;
 }
 
 static inline void
-core_stats_update_frag_drop(int n)
-{
-	int lcore_id = rte_lcore_id();
-	core_statistics[lcore_id].frag_dropped += n;
+core_stats_update_frag_drop(int n) {
+    int lcore_id = rte_lcore_id();
+    core_statistics[lcore_id].frag_dropped += n;
 }
 
 static inline int
-is_ip_reassembly_incomplete(struct rte_mbuf *mbuf)
-{
-	if (ip_reassembly_dynflag == 0)
-		return -1;
-	return (mbuf->ol_flags & ip_reassembly_dynflag) != 0;
+is_ip_reassembly_incomplete(struct rte_mbuf *mbuf) {
+    if (ip_reassembly_dynflag == 0)
+        return -1;
+    return (mbuf->ol_flags & ip_reassembly_dynflag) != 0;
 }
 
 static inline void
-free_reassembly_fail_pkt(struct rte_mbuf *mb)
-{
-	if (ip_reassembly_dynfield_offset >= 0) {
-		rte_eth_ip_reassembly_dynfield_t dynfield;
-		uint32_t frag_cnt = 0;
+free_reassembly_fail_pkt(struct rte_mbuf *mb) {
+    if (ip_reassembly_dynfield_offset >= 0) {
+        rte_eth_ip_reassembly_dynfield_t dynfield;
+        uint32_t frag_cnt = 0;
 
-		while (mb) {
-			dynfield = *RTE_MBUF_DYNFIELD(mb,
-					ip_reassembly_dynfield_offset,
-					rte_eth_ip_reassembly_dynfield_t *);
-			rte_pktmbuf_free(mb);
-			mb = dynfield.next_frag;
-			frag_cnt++;
-		}
+        while (mb) {
+            dynfield = *RTE_MBUF_DYNFIELD(mb,
+                                          ip_reassembly_dynfield_offset,
+                                          rte_eth_ip_reassembly_dynfield_t *);
+            rte_pktmbuf_free(mb);
+            mb = dynfield.next_frag;
+            frag_cnt++;
+        }
 
-		core_stats_update_frag_drop(frag_cnt);
-	} else {
-		rte_pktmbuf_free(mb);
-		core_stats_update_drop(1);
-	}
+        core_stats_update_frag_drop(frag_cnt);
+    } else {
+        rte_pktmbuf_free(mb);
+        core_stats_update_drop(1);
+    }
 }
 
 /* helper routine to free bulk of packets */
 static __rte_always_inline void
-free_pkts(struct rte_mbuf *mb[], const uint32_t n)
-{
-	n == 1 ? rte_pktmbuf_free(mb[0]) : rte_pktmbuf_free_bulk(mb, n);
-	core_stats_update_drop(n);
+free_pkts(struct rte_mbuf *mb[], const uint32_t n) {
+    n == 1 ? rte_pktmbuf_free(mb[0]) : rte_pktmbuf_free_bulk(mb, n);
+    core_stats_update_drop(n);
 }
 
 #endif /* _IPSEC_SECGW_H_ */
