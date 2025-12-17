@@ -174,12 +174,16 @@ is_unprotected_port(uint16_t port_id) {
 }
 
 static inline void
-core_stats_update_rx(int n) {
+core_stats_update_rx(int n, struct rte_mbuf **pkts){
     int lcore_id = rte_lcore_id();
     core_statistics[lcore_id].rx += n;
     core_statistics[lcore_id].rx_call++;
     if (n == MAX_PKT_BURST)
         core_statistics[lcore_id].burst_rx += n;
+
+    for (uint16_t i = 0; i < n; i++) {
+        core_statistics[lcore_id].rx_bytes += pkts[i]->pkt_len;
+    }
 }
 
 static inline void

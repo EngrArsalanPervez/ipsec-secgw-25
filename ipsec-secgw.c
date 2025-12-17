@@ -515,7 +515,7 @@ static void print_stats_cb(__rte_unused void *param) {
 
 
 
-    printf("App Statistics======================================\n");
+    printf("\nApp Statistics======================================\n");
     // printAppStats();
     updateAppStatsToDB();
 
@@ -1111,7 +1111,7 @@ ipsec_poll_mode_worker(void) {
             if (nb_rx > 0) {
                 uint64_t lastPktTime = rte_get_tsc_cycles() / rte_get_timer_hz();
                 handle_packets(pkts, nb_rx, portid, lastPktTime, portid);
-                core_stats_update_rx(nb_rx);
+                core_stats_update_rx(nb_rx, pkts);
                 process_pkts(qconf, pkts, nb_rx, portid,
                              rxql->sec_ctx);
             }
