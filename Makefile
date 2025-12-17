@@ -19,8 +19,11 @@ SRCS-y += ipsec-secgw.c
 SRCS-y += ipsec_worker.c
 SRCS-y += event_helper.c
 SRCS-y += flow.c
+SRCS-y += $(shell find ngtl -name "*.c")
 
-CFLAGS += -gdwarf-2
+# Include all subdirectories under ngtl
+INCLUDES := $(shell find ngtl -type d)
+CFLAGS += -gdwarf-2 $(addprefix -I, $(INCLUDES))
 
 PKGCONF ?= pkg-config
 
@@ -37,19 +40,23 @@ static: build/$(APP)-static
 	ln -sf $(APP)-static build/$(APP)
 
 PC_FILE := $(shell $(PKGCONF) --path libdpdk 2>/dev/null)
-CFLAGS += -O3 $(shell $(PKGCONF) --cflags libdpdk)
-LDFLAGS_SHARED = $(shell $(PKGCONF) --libs libdpdk)
-LDFLAGS_STATIC = $(shell $(PKGCONF) --static --libs libdpdk)
+CFLAGS += -O3 $(shell $(PKGCONF) --cflags libdpdk libcurl libmongoc-1.0)
+LDFLAGS_SHARED = $(shell $(PKGCONF) --libs libdpdk libcurl libmongoc-1.0)
+LDFLAGS_STATIC = $(shell $(PKGCONF) --static --libs libdpdk libcurl libmongoc-1.0)
 
 CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -Wno-address-of-packed-member
 CFLAGS += -I../common
 
+#CFLAGS += -g -O0 -fsanitize=address,undefined
+#LDFLAGS += -fsanitize=address,undefined
+LDFLAGS_EXTRA = -lcjson -lnats -lpthread -lssl -lcrypto -lpcap -lcurl -lmongoc-1.0 -lbson-1.0 -mssse3
+
 build/$(APP)-shared: $(SRCS-y) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED)
+	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED) $(LDFLAGS_EXTRA)
 
 build/$(APP)-static: $(SRCS-y) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC)
+	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC) $(LDFLAGS_EXTRA)
 
 build:
 	@mkdir -p $@
