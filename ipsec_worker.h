@@ -259,7 +259,7 @@ send_burst(struct lcore_conf *qconf, uint16_t n, uint16_t port) {
 
     ret = rte_eth_tx_burst(port, queueid, m_table, n);
 
-    core_stats_update_tx(ret);
+    core_stats_update_tx(ret, m_table);
 
     if (unlikely(ret < n)) {
         do {

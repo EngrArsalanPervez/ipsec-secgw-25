@@ -1093,7 +1093,7 @@ ipsec_ev_cryptodev_vector_process(
         free_pkts(vec->mbufs, vec->nb_elem);
         rte_mempool_put(rte_mempool_from_obj(vec), vec);
     } else {
-        core_stats_update_tx(n);
+        core_stats_update_tx(n, vec->mbufs);
     }
 }
 
@@ -1381,7 +1381,7 @@ ipsec_wrkr_non_burst_int_port_app_mode(struct eh_event_link_info *links,
                 continue;
         }
 
-        core_stats_update_tx(1);
+        core_stats_update_tx(1, NULL);
         /*
 		 * Since tx internal port is available, events can be
 		 * directly enqueued to the adapter and it would be

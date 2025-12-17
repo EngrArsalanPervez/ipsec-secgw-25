@@ -139,7 +139,7 @@ send_packetsx4(struct rte_mbuf *m[], uint16_t port, uint32_t num) {
 	 */
     if (num >= MAX_TX_BURST && len == 0) {
         n = rte_eth_tx_burst(port, qconf->tx_queue_id[port], m, num);
-        core_stats_update_tx(n);
+        core_stats_update_tx(n, m);
         if (unlikely(n < num)) {
             do {
                 rte_pktmbuf_free(m[n]);

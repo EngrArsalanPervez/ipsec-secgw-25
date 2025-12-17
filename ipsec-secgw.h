@@ -188,10 +188,16 @@ core_stats_update_rx(int n, struct rte_mbuf **pkts){
 }
 
 static inline void
-core_stats_update_tx(int n) {
+core_stats_update_tx(int n, struct rte_mbuf **pkts){
     int lcore_id = rte_lcore_id();
     core_statistics[lcore_id].tx += n;
     core_statistics[lcore_id].tx_call++;
+
+    if (pkts!=NULL) {
+        for (int i = 0; i < n; i++) {
+            core_statistics[lcore_id].tx_bytes += pkts[i]->pkt_len;
+        }
+    }
 }
 
 static inline void
