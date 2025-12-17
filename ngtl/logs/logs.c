@@ -1,8 +1,7 @@
 #include "logs.h"
 
-void push(struct Log **head, int newData)
-{
-    struct Log *newLog = (struct Log *)malloc(sizeof(struct Log));
+void push(struct Log **head, int newData) {
+    struct Log *newLog = (struct Log *) malloc(sizeof(struct Log));
     if (!newLog) {
         return;
     }
@@ -21,8 +20,7 @@ void push(struct Log **head, int newData)
     temp->next = newLog;
 }
 
-int pop(struct Log **head)
-{
+int pop(struct Log **head) {
     if (*head == NULL) {
         return -1;
     }
@@ -33,8 +31,7 @@ int pop(struct Log **head)
     return poppedData;
 }
 
-void printList(struct Log *log)
-{
+void printList(struct Log *log) {
     while (log != NULL) {
         printf("%d -> ", log->data);
         log = log->next;

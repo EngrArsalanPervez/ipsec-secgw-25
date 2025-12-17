@@ -98,7 +98,9 @@ struct appStatsStruct {
 extern struct appStatsStruct appStatsData[RTE_MAX_ETHPORTS];
 
 void printAppStats(void);
+
 void tcpServices(uint16_t port, uint16_t portid);
+
 void udpServices(uint16_t port, uint16_t portid);
 
 #endif

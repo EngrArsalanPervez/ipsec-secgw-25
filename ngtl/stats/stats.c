@@ -1,10 +1,9 @@
 #include "stats.h"
 #include <rte_build_config.h>
 
-struct appStatsStruct appStatsData[RTE_MAX_ETHPORTS] = { 0 };
+struct appStatsStruct appStatsData[RTE_MAX_ETHPORTS] = {0};
 
-void printAppStats(void)
-{
+void printAppStats(void) {
     // Layer2
     printf("eth:\t\t\t%30lu\t\t\t%30lu\n"
            "ethTypeARP:\t\t%30lu\t\t\t%30lu\n"
@@ -126,131 +125,129 @@ void printAppStats(void)
            appStatsData[1].tcpServicesData.tcpTypeUNKNOWN);
 }
 
-void tcpServices(uint16_t port, uint16_t portid)
-{
+void tcpServices(uint16_t port, uint16_t portid) {
     switch (port) {
-    case 20:
-    case 21:
-        appStatsData[portid].tcpServicesData.tcpTypeFTP++;
-        break;
-    case 22:
-        appStatsData[portid].tcpServicesData.tcpTypeSSH++;
-        break;
-    case 23:
-        appStatsData[portid].tcpServicesData.tcpTypeTELNET++;
-        break;
-    case 25:
-        appStatsData[portid].tcpServicesData.tcpTypeSMTP++;
-        break;
-    case 80:
-        appStatsData[portid].tcpServicesData.tcpTypeHTTP++;
-        break;
-    case 443:
-        appStatsData[portid].tcpServicesData.tcpTypeHTTPS++;
-        break;
-    case 143:
-        appStatsData[portid].tcpServicesData.tcpTypeIMAPS++;
-        break;
-    case 1433:
-        appStatsData[portid].tcpServicesData.tcpTypeMSSQL++;
-        break;
-    case 1521:
-        appStatsData[portid].tcpServicesData.tcpTypeORACLESQL++;
-        break;
-    case 1723:
-        appStatsData[portid].tcpServicesData.tcpTypePPTP++;
-        break;
-    case 3306:
-        appStatsData[portid].tcpServicesData.tcpTypeMYSQL++;
-        break;
-    case 3389:
-        appStatsData[portid].tcpServicesData.tcpTypeRDP++;
-        break;
-    case 5900:
-        appStatsData[portid].tcpServicesData.tcpTypeVNC++;
-        break;
-    case 137:
-    case 138:
-    case 139:
-        appStatsData[portid].tcpServicesData.tcpTypeNETBIOS++;
-        break;
-    case 161:
-    case 179:
-        appStatsData[portid].tcpServicesData.tcpTypeBGP++;
-        break;
-    case 5060:
-    case 5061:
-        appStatsData[portid].tcpServicesData.tcpTypeSIP++;
-        break;
-    case 636:
-        appStatsData[portid].tcpServicesData.tcpTypeLDAP++;
-        break;
-    case 1080:
-        appStatsData[portid].tcpServicesData.tcpTypeSOCKS++;
-        break;
-    case 3128:
-        appStatsData[portid].tcpServicesData.tcpTypeSQUID++;
-        break;
-    case 5432:
-        appStatsData[portid].tcpServicesData.tcpTypePOSTGRESQL++;
-        break;
-    case 6379:
-        appStatsData[portid].tcpServicesData.tcpTypeREDIS++;
-        break;
-    case 9200:
-        appStatsData[portid].tcpServicesData.tcpTypeELASTICSEARCH++;
-        break;
-    case 27017:
-    case 27018:
-    case 27019:
-        appStatsData[portid].tcpServicesData.tcpTypeMONGODB++;
-        break;
-    default:
-        appStatsData[portid].tcpServicesData.tcpTypeUNKNOWN++;
-        break;
+        case 20:
+        case 21:
+            appStatsData[portid].tcpServicesData.tcpTypeFTP++;
+            break;
+        case 22:
+            appStatsData[portid].tcpServicesData.tcpTypeSSH++;
+            break;
+        case 23:
+            appStatsData[portid].tcpServicesData.tcpTypeTELNET++;
+            break;
+        case 25:
+            appStatsData[portid].tcpServicesData.tcpTypeSMTP++;
+            break;
+        case 80:
+            appStatsData[portid].tcpServicesData.tcpTypeHTTP++;
+            break;
+        case 443:
+            appStatsData[portid].tcpServicesData.tcpTypeHTTPS++;
+            break;
+        case 143:
+            appStatsData[portid].tcpServicesData.tcpTypeIMAPS++;
+            break;
+        case 1433:
+            appStatsData[portid].tcpServicesData.tcpTypeMSSQL++;
+            break;
+        case 1521:
+            appStatsData[portid].tcpServicesData.tcpTypeORACLESQL++;
+            break;
+        case 1723:
+            appStatsData[portid].tcpServicesData.tcpTypePPTP++;
+            break;
+        case 3306:
+            appStatsData[portid].tcpServicesData.tcpTypeMYSQL++;
+            break;
+        case 3389:
+            appStatsData[portid].tcpServicesData.tcpTypeRDP++;
+            break;
+        case 5900:
+            appStatsData[portid].tcpServicesData.tcpTypeVNC++;
+            break;
+        case 137:
+        case 138:
+        case 139:
+            appStatsData[portid].tcpServicesData.tcpTypeNETBIOS++;
+            break;
+        case 161:
+        case 179:
+            appStatsData[portid].tcpServicesData.tcpTypeBGP++;
+            break;
+        case 5060:
+        case 5061:
+            appStatsData[portid].tcpServicesData.tcpTypeSIP++;
+            break;
+        case 636:
+            appStatsData[portid].tcpServicesData.tcpTypeLDAP++;
+            break;
+        case 1080:
+            appStatsData[portid].tcpServicesData.tcpTypeSOCKS++;
+            break;
+        case 3128:
+            appStatsData[portid].tcpServicesData.tcpTypeSQUID++;
+            break;
+        case 5432:
+            appStatsData[portid].tcpServicesData.tcpTypePOSTGRESQL++;
+            break;
+        case 6379:
+            appStatsData[portid].tcpServicesData.tcpTypeREDIS++;
+            break;
+        case 9200:
+            appStatsData[portid].tcpServicesData.tcpTypeELASTICSEARCH++;
+            break;
+        case 27017:
+        case 27018:
+        case 27019:
+            appStatsData[portid].tcpServicesData.tcpTypeMONGODB++;
+            break;
+        default:
+            appStatsData[portid].tcpServicesData.tcpTypeUNKNOWN++;
+            break;
     }
 }
 
-void udpServices(uint16_t port, uint16_t portid)
-{
+void udpServices(uint16_t port, uint16_t portid) {
     switch (port) {
-    case 500:
-    case 4500:
-        appStatsData[portid].udpServicesData.udpTypeIKEv2++;
-        break;
-    case 53:
-        appStatsData[portid].udpServicesData.udpTypeDNS++;
-        break;
-    case 67:
-    case 68:
-        appStatsData[portid].udpServicesData.udpTypeDHCP++;
-        break;
-    case 123:
-        appStatsData[portid].udpServicesData.udpTypeNTP++;
-        break;
-    case 161:
-    case 162:
-        appStatsData[portid].udpServicesData.udpTypeSNMP++;
-        break;
-    case 514:
-        appStatsData[portid].udpServicesData.udpTypeSYSLOG++;
-        break;
-    case 520:
-        appStatsData[portid].udpServicesData.udpTypeRIP++;
-        break;
-    case 1645:
-    case 1646:
-        appStatsData[portid].udpServicesData.udpTypeRADIUS++;
-        break;
-    case 6000:
-    case 6063:
-        appStatsData[portid].udpServicesData.udpTypeX11++;
-        break;
-    case 1194:
-        appStatsData[portid].udpServicesData.udpTypeOPENVPN++;
-        break;
-    default:
-        appStatsData[portid].udpServicesData.udpTypeUNKNOWN++;
-        break;
+        case 500:
+        case 4500:
+            appStatsData[portid].udpServicesData.udpTypeIKEv2++;
+            break;
+        case 53:
+            appStatsData[portid].udpServicesData.udpTypeDNS++;
+            break;
+        case 67:
+        case 68:
+            appStatsData[portid].udpServicesData.udpTypeDHCP++;
+            break;
+        case 123:
+            appStatsData[portid].udpServicesData.udpTypeNTP++;
+            break;
+        case 161:
+        case 162:
+            appStatsData[portid].udpServicesData.udpTypeSNMP++;
+            break;
+        case 514:
+            appStatsData[portid].udpServicesData.udpTypeSYSLOG++;
+            break;
+        case 520:
+            appStatsData[portid].udpServicesData.udpTypeRIP++;
+            break;
+        case 1645:
+        case 1646:
+            appStatsData[portid].udpServicesData.udpTypeRADIUS++;
+            break;
+        case 6000:
+        case 6063:
+            appStatsData[portid].udpServicesData.udpTypeX11++;
+            break;
+        case 1194:
+            appStatsData[portid].udpServicesData.udpTypeOPENVPN++;
+            break;
+        default:
+            appStatsData[portid].udpServicesData.udpTypeUNKNOWN++;
+            break;
     }
 }

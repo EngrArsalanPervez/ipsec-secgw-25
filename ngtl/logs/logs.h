@@ -10,7 +10,9 @@ struct Log {
 };
 
 void push(struct Log **head, int newData);
+
 int pop(struct Log **head);
+
 void printList(struct Log *log);
 
 #endif

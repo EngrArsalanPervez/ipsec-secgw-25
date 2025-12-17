@@ -61,6 +61,21 @@
 #include "ipsec_lpm_neon.h"
 #endif
 
+#include "db.h"
+#include "hashtable.h"
+#include "logs.h"
+#include "stats.h"
+#include "sub.h"
+#include "utility.h"
+#include "pkt_wrapper.h"
+#include "pkt_rules.h"
+#include "pkt_dump.h"
+
+struct Log *head = NULL;
+struct netstatStruct netstatData[NETSTAT_ENTRIES] = {0};
+struct hashStats netstatStats = {0};
+struct appTimeStruct appTime = {0};
+
 volatile bool force_quit;
 
 #define MAX_JUMBO_PKT_LEN  9600
@@ -256,6 +271,57 @@ struct socket_ctx socket_ctx[NB_SOCKETS];
 bool per_port_pool;
 
 uint16_t wrkr_flags;
+
+void flushHashTable(void) {
+    uint64_t curr_time = rte_get_tsc_cycles() / rte_get_timer_hz();
+    int n = 0, ret = 0;
+    for (n = 0; n < NETSTAT_ENTRIES; n++) {
+        if (netstatData[n].status == 1) {
+            if (((curr_time - netstatData[n].lastPktTime)) > 15) {
+                ret = rte_hash_lookup(NETSTAT, (void *) &netstatData[n].key);
+                if (ret >= 0) {
+                    ret = rte_hash_del_key(NETSTAT, (void *) &netstatData[ret].key);
+                    if (ret >= 0) {
+                        netstatData[ret] = (struct netstatStruct){0};
+                        if (netstatStats.counts > 0)
+                            netstatStats.counts--;
+                    }
+                } else {
+                    netstatData[n] = (struct netstatStruct){0};
+                }
+            }
+        }
+    }
+}
+
+void printTime(void) {
+    appTime.totalSecondsElapsed++;
+    appTime.sec++;
+    if (appTime.sec == 60) {
+        appTime.sec = 0;
+        appTime.min++;
+    }
+    if (appTime.min == 60) {
+        appTime.sec = appTime.min = 0;
+        appTime.hrs++;
+    }
+    if (appTime.hrs == 24) {
+        appTime.sec = appTime.min = appTime.hrs = 0;
+        appTime.day++;
+    }
+    if (appTime.day == 30) {
+        appTime.sec = appTime.min = appTime.hrs = appTime.day = 0;
+        appTime.mon++;
+    }
+    if (appTime.mon == 12) {
+        appTime.sec = appTime.min = appTime.hrs = appTime.day = appTime.mon = 0;
+        appTime.year++;
+    }
+    sprintf(appTime.time, "%04uY-%02uM-%02uD %02uH:%02um:%02us", appTime.year, appTime.mon,
+            appTime.day, appTime.hrs, appTime.min, appTime.sec);
+    printf("Time elapsed:%34s\n", appTime.time);
+}
+
 /*
  * Determine is multi-segment support required:
  *  - either frame buffer size is smaller then mtu
@@ -270,17 +336,115 @@ multi_seg_required(void) {
 
 struct ipsec_core_statistics core_statistics[RTE_MAX_LCORE];
 
+void updateInterfaceStats(void) {
+    if (device_type.type == DUAL_PORT) {
+        struct interfaceStatsStruct interfaceStatsDate = {0};
+        interfaceStatsDate.pktsReceived = core_statistics[0].rx;
+        interfaceStatsDate.pktsSent = core_statistics[1].tx;
+        interfaceStatsDate.pktsDropped = core_statistics[0].dropped;
+        strcpy(interfaceStatsDate.rxBytes, core_statistics[0].rxBytesNormalized);
+        strcpy(interfaceStatsDate.txBytes, core_statistics[1].txBytesNormalized);
+        sprintf(interfaceStatsDate.rxRate, "%.2f Mb/s", core_statistics[0].rxRate);
+        sprintf(interfaceStatsDate.txRate, "%.2f Mb/s", core_statistics[1].txRate);
+        updateInterfaceStatsToDB(&interfaceStatsDate, 0);
+
+        // Interface1 Stats
+        interfaceStatsDate = (struct interfaceStatsStruct){0};
+        interfaceStatsDate.pktsReceived = core_statistics[1].rx;
+        interfaceStatsDate.pktsSent = core_statistics[0].tx;
+        interfaceStatsDate.pktsDropped = core_statistics[1].dropped;
+        strcpy(interfaceStatsDate.rxBytes, core_statistics[1].rxBytesNormalized);
+        strcpy(interfaceStatsDate.txBytes, core_statistics[0].txBytesNormalized);
+        sprintf(interfaceStatsDate.rxRate, "%.2f Mb/s", core_statistics[1].rxRate);
+        sprintf(interfaceStatsDate.txRate, "%.2f Mb/s", core_statistics[0].txRate);
+        updateInterfaceStatsToDB(&interfaceStatsDate, 1);
+    } else {
+        float rxRate = 0;
+        float txRate = 0;
+        char rxBytesNormalized[32];
+        char txBytesNormalized[32];
+        struct interfaceStatsStruct interfaceStatsDate = {0};
+
+        interfaceStatsDate.pktsReceived = core_statistics[0].rx + core_statistics[1].rx +
+                                          core_statistics[2].rx + core_statistics[3].rx;
+
+        interfaceStatsDate.pktsSent = core_statistics[4].tx + core_statistics[5].tx +
+                                      core_statistics[6].tx + core_statistics[7].tx;
+
+        interfaceStatsDate.pktsDropped = core_statistics[0].dropped + core_statistics[1].dropped +
+                                         core_statistics[2].dropped + core_statistics[3].dropped;
+
+        uint64_t rx_bytes = core_statistics[0].rx_bytes + core_statistics[1].rx_bytes +
+                            core_statistics[2].rx_bytes + core_statistics[3].rx_bytes;
+
+        uint64_t tx_bytes = core_statistics[4].tx_bytes + core_statistics[5].tx_bytes +
+                            core_statistics[6].tx_bytes + core_statistics[7].tx_bytes;
+
+        bytesNormalize(rx_bytes, rxBytesNormalized);
+        bytesNormalize(tx_bytes, txBytesNormalized);
+
+        strcpy(interfaceStatsDate.rxBytes, rxBytesNormalized);
+        strcpy(interfaceStatsDate.txBytes, txBytesNormalized);
+
+        rxRate = core_statistics[0].rxRate + core_statistics[1].rxRate + core_statistics[2].rxRate +
+                 core_statistics[3].rxRate;
+        txRate = core_statistics[0].txRate + core_statistics[1].txRate + core_statistics[2].txRate +
+                 core_statistics[3].txRate;
+
+        sprintf(interfaceStatsDate.rxRate, "%.2f Mb/s", rxRate);
+        sprintf(interfaceStatsDate.txRate, "%.2f Mb/s", txRate);
+        updateInterfaceStatsToDB(&interfaceStatsDate, CLIENT_PORT);
+
+        interfaceStatsDate = (struct interfaceStatsStruct){0};
+
+        interfaceStatsDate.pktsReceived = core_statistics[4].rx + core_statistics[5].rx +
+                                          core_statistics[6].rx + core_statistics[7].rx;
+
+        interfaceStatsDate.pktsSent = core_statistics[0].tx + core_statistics[1].tx +
+                                      core_statistics[2].tx + core_statistics[3].tx;
+
+        interfaceStatsDate.pktsDropped = core_statistics[4].dropped + core_statistics[5].dropped +
+                                         core_statistics[6].dropped + core_statistics[7].dropped;
+
+        rx_bytes = core_statistics[4].rx_bytes + core_statistics[5].rx_bytes +
+                   core_statistics[6].rx_bytes + core_statistics[7].rx_bytes;
+
+        tx_bytes = core_statistics[0].tx_bytes + core_statistics[1].tx_bytes +
+                   core_statistics[2].tx_bytes + core_statistics[3].tx_bytes;
+
+        bytesNormalize(rx_bytes, rxBytesNormalized);
+        bytesNormalize(tx_bytes, txBytesNormalized);
+
+        strcpy(interfaceStatsDate.rxBytes, rxBytesNormalized);
+        strcpy(interfaceStatsDate.txBytes, txBytesNormalized);
+
+        rxRate = core_statistics[4].rxRate + core_statistics[5].rxRate + core_statistics[6].rxRate +
+                 core_statistics[7].rxRate;
+        txRate = core_statistics[4].txRate + core_statistics[5].txRate + core_statistics[6].txRate +
+                 core_statistics[7].txRate;
+
+        sprintf(interfaceStatsDate.rxRate, "%.2f Mb/s", rxRate);
+        sprintf(interfaceStatsDate.txRate, "%.2f Mb/s", txRate);
+        updateInterfaceStatsToDB(&interfaceStatsDate, TUNNEL_PORT);
+    }
+}
+
 /* Print out statistics on packet distribution */
-static void
-print_stats_cb(__rte_unused void *param) {
+static void print_stats_cb(__rte_unused void *param) {
     uint64_t total_packets_dropped, total_packets_tx, total_packets_rx;
-    uint64_t total_frag_packets_dropped = 0;
     float burst_percent, rx_per_call, tx_per_call;
     unsigned int coreid;
 
     total_packets_dropped = 0;
     total_packets_tx = 0;
     total_packets_rx = 0;
+
+    uint64_t total_rxBytes = 0;
+    uint64_t total_txBytes = 0;
+    char total_rxBytesNormalized[32] = {0};
+    char total_txBytesNormalized[32] = {0};
+    float total_rxRate = 0;
+    float total_txRate = 0;
 
     const char clr[] = {27, '[', '2', 'J', '\0'};
     const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
@@ -294,44 +458,88 @@ print_stats_cb(__rte_unused void *param) {
         /* skip disabled cores */
         if (rte_lcore_is_enabled(coreid) == 0)
             continue;
-        burst_percent = (float) (core_statistics[coreid].burst_rx * 100) /
-                        core_statistics[coreid].rx;
-        rx_per_call = (float) (core_statistics[coreid].rx) /
-                      core_statistics[coreid].rx_call;
-        tx_per_call = (float) (core_statistics[coreid].tx) /
-                      core_statistics[coreid].tx_call;
+        burst_percent =
+                (float) (core_statistics[coreid].burst_rx * 100) / core_statistics[coreid].rx;
+        rx_per_call = (float) (core_statistics[coreid].rx) / core_statistics[coreid].rx_call;
+        tx_per_call = (float) (core_statistics[coreid].tx) / core_statistics[coreid].tx_call;
+
+        bytesNormalize(core_statistics[coreid].rx_bytes, core_statistics[coreid].rxBytesNormalized);
+        bytesNormalize(core_statistics[coreid].tx_bytes, core_statistics[coreid].txBytesNormalized);
+
+        uint64_t rxBytes = core_statistics[coreid].rx_bytes - core_statistics[coreid].rx_bytes_old;
+        uint64_t txBytes = core_statistics[coreid].tx_bytes - core_statistics[coreid].tx_bytes_old;
+
+        core_statistics[coreid].rx_bytes_old = core_statistics[coreid].rx_bytes;
+        core_statistics[coreid].tx_bytes_old = core_statistics[coreid].tx_bytes;
+
+        core_statistics[coreid].rxRate = (float) ((rxBytes * 8) / 1000000);
+        core_statistics[coreid].txRate = (float) ((txBytes * 8) / 1000000);
+
+        total_rxRate += core_statistics[coreid].rxRate;
+        total_txRate += core_statistics[coreid].txRate;
+
         printf("\nStatistics for core %u ------------------------------"
-               "\nPackets received: %20"PRIu64
-               "\nPackets sent: %24"PRIu64
-               "\nPackets dropped: %21"PRIu64
-               "\nFrag Packets dropped: %16"PRIu64
-               "\nBurst percent: %23.2f"
-               "\nPackets per Rx call: %17.2f"
-               "\nPackets per Tx call: %17.2f",
-               coreid,
-               core_statistics[coreid].rx,
-               core_statistics[coreid].tx,
-               core_statistics[coreid].dropped,
-               core_statistics[coreid].frag_dropped,
-               burst_percent,
-               rx_per_call,
-               tx_per_call);
+               "\nPackets received: %30" PRIu64 "\nPackets sent: %34" PRIu64
+               "\nPackets dropped: %31" PRIu64 "\nBurst percent:\t\t %23.2f"
+               "\nPackets per Rx call:\t\t%16.2f"
+               "\nPackets per Tx call:\t\t%16.2f"
+               "\nrx_bytes:\t%32" PRIu64 "\ntx_bytes:\t%32" PRIu64 "\nrxBytesNormalized:\t%24s"
+               "\ntxBytesNormalized:\t%24s"
+               "\nrxRate:\t\t\t%19.2f Mb/s"
+               "\ntxRate:\t\t\t%19.2f Mb/s",
+               coreid, core_statistics[coreid].rx, core_statistics[coreid].tx,
+               core_statistics[coreid].dropped, burst_percent, rx_per_call, tx_per_call,
+               core_statistics[coreid].rx_bytes, core_statistics[coreid].tx_bytes,
+               core_statistics[coreid].rxBytesNormalized, core_statistics[coreid].txBytesNormalized,
+               core_statistics[coreid].rxRate, core_statistics[coreid].txRate);
 
         total_packets_dropped += core_statistics[coreid].dropped;
-        total_frag_packets_dropped += core_statistics[coreid].frag_dropped;
         total_packets_tx += core_statistics[coreid].tx;
         total_packets_rx += core_statistics[coreid].rx;
+        total_txBytes += core_statistics[coreid].tx_bytes;
+        total_rxBytes += core_statistics[coreid].rx_bytes;
     }
+
+    bytesNormalize(total_rxBytes, total_rxBytesNormalized);
+    bytesNormalize(total_txBytes, total_txBytesNormalized);
+
     printf("\nAggregate statistics ==============================="
-           "\nTotal packets received: %14"PRIu64
-           "\nTotal packets sent: %18"PRIu64
-           "\nTotal packets dropped: %15"PRIu64
-           "\nTotal frag packets dropped: %10"PRIu64,
-           total_packets_rx,
-           total_packets_tx,
-           total_packets_dropped,
-           total_frag_packets_dropped);
-    printf("\n====================================================\n");
+           "\nTotal packets received: %24" PRIu64 "\nTotal packets sent: %28" PRIu64
+           "\nTotal packets dropped: %25" PRIu64 "\nTotal packets bytes received: %18" PRIu64
+           "\nTotal packets bytes sent:     %18" PRIu64 "\nTotal packets bytes received:%19s"
+           "\nTotal packets bytes sent:%23s"
+           "\nTotal received rate:\t\t%12.2f Mb/s"
+           "\nTotal sent rate:\t\t%12.2f Mb/s",
+           total_packets_rx, total_packets_tx, total_packets_dropped, total_rxBytes, total_txBytes,
+           total_rxBytesNormalized, total_txBytesNormalized, total_rxRate, total_txRate);
+
+
+
+    printf("App Statistics======================================\n");
+    // printAppStats();
+    updateAppStatsToDB();
+
+    // Interface0 Stats
+    updateInterfaceStats();
+
+    // Device Stats
+    struct deviceStatsStruct deviceStatsDate = {0};
+    deviceStatsDate.totalPktsReceived = total_packets_rx;
+    deviceStatsDate.totalPktsSent = total_packets_tx;
+    deviceStatsDate.totalPktsDropped = total_packets_dropped;
+    strcpy(deviceStatsDate.totalRxBytes, total_rxBytesNormalized);
+    strcpy(deviceStatsDate.totalTxBytes, total_txBytesNormalized);
+    sprintf(deviceStatsDate.totalRxRate, "%.2f Mb/s", total_rxRate);
+    sprintf(deviceStatsDate.totalTxRate, "%.2f Mb/s", total_txRate);
+    updateDeviceStatsToDB(&deviceStatsDate);
+
+    printf("Hash statistics=====================================\n");
+    printf("NETSTAT_COUNT:%33lu\n"
+           "NETSTAT_HITS:%34lu\n",
+           netstatStats.counts, netstatStats.hits);
+    printf("Time statistics=====================================\n");
+    printTime();
+    updateTimeToDB(&appTime);
 
     rte_eal_alarm_set(stats_interval * US_PER_S, print_stats_cb, NULL);
 }
@@ -554,6 +762,158 @@ process_pkts_outbound_nosp(struct ipsec_ctx *ipsec_ctx,
     }
 }
 
+void *flushHashTablesLcore(void *arg) {
+    while (!force_quit) {
+        flushHashTable();
+        rte_delay_us_sleep(1000); // sleep for 1 ms
+    }
+}
+
+void *logsManagerLcore(void *arg) {
+    while (!force_quit) {
+        int ret = pop(&head);
+        if (ret >= 0) {
+            insertNetstatToDB(&netstatData[ret]);
+        }
+        rte_delay_us_sleep(1000); // sleep for 1 ms
+    }
+}
+
+void dpi(struct rte_mbuf *buf, uint16_t portid, uint64_t lastPktTime, PORT_TYPE port_type) {
+    unsigned char *pkt = rte_pktmbuf_mtod(buf, unsigned char *);
+    struct rte_ether_hdr *ethHdr = (struct rte_ether_hdr *) pkt;
+
+    appStatsData[port_type].eth++;
+
+    uint16_t ethType = rte_cpu_to_be_16(ethHdr->ether_type);
+
+    switch (ethType) {
+        case RTE_ETHER_TYPE_ARP: {
+            appStatsData[port_type].ethTypeARP++;
+            break;
+        }
+        case RTE_ETHER_TYPE_VLAN: {
+            appStatsData[port_type].ethTypeVLAN++;
+            break;
+        }
+        case RTE_ETHER_TYPE_IPV6: {
+            appStatsData[port_type].ethTypeIPV6++;
+            break;
+        }
+        case RTE_ETHER_TYPE_LLDP: {
+            appStatsData[port_type].ethTypeLLDP++;
+            break;
+        }
+        case RTE_ETHER_TYPE_IPV4: {
+            struct netstatHashKeyStruct netstatHashKeyData = {0};
+            appStatsData[port_type].ethTypeIPV4++;
+
+            struct rte_ipv4_hdr *ip4Hdr;
+            ip4Hdr = (struct rte_ipv4_hdr *) &pkt[14];
+            buf->l2_len = ((ip4Hdr->version_ihl & 0x0F) * 4) + 14;
+            netstatHashKeyData.srcIP = ip4Hdr->src_addr;
+            netstatHashKeyData.dstIP = ip4Hdr->dst_addr;
+
+            switch (ip4Hdr->next_proto_id) {
+                case IPPROTO_TCP: {
+                    appStatsData[port_type].ipTypeTCP++;
+                    struct rte_tcp_hdr *tcpHdr;
+                    tcpHdr = (struct rte_tcp_hdr *) &pkt[buf->l2_len];
+                    tcpServices(rte_be_to_cpu_16(tcpHdr->src_port), port_type);
+                    tcpServices(rte_be_to_cpu_16(tcpHdr->dst_port), port_type);
+                    // Key
+                    netstatHashKeyData.proto = IPPROTO_TCP;
+                    netstatHashKeyData.srcPort = tcpHdr->src_port;
+                    netstatHashKeyData.dstPort = tcpHdr->dst_port;
+                    break;
+                }
+                case IPPROTO_UDP: {
+                    appStatsData[port_type].ipTypeUDP++;
+                    struct rte_udp_hdr *udpHdr;
+                    udpHdr = (struct rte_udp_hdr *) &pkt[buf->l2_len];
+                    udpServices(rte_be_to_cpu_16(udpHdr->src_port), port_type);
+                    udpServices(rte_be_to_cpu_16(udpHdr->dst_port), port_type);
+                    // Key
+                    netstatHashKeyData.proto = IPPROTO_UDP;
+                    netstatHashKeyData.srcPort = udpHdr->src_port;
+                    netstatHashKeyData.dstPort = udpHdr->dst_port;
+                    break;
+                }
+                case IPPROTO_ICMP: {
+                    // Key
+                    netstatHashKeyData.proto = IPPROTO_ICMP;
+                    appStatsData[port_type].ipTypeICMP++;
+                    break;
+                }
+                case IPPROTO_ESP: {
+                    // Key
+                    netstatHashKeyData.proto = IPPROTO_ESP;
+                    appStatsData[port_type].ipTypeESP++;
+                    break;
+                }
+                case IPPROTO_IGMP: {
+                    // Key
+                    netstatHashKeyData.proto = IPPROTO_IGMP;
+                    appStatsData[port_type].ipTypeIGMP++;
+                    break;
+                }
+                case IPPROTO_GRE: {
+                    // Key
+                    netstatHashKeyData.proto = IPPROTO_GRE;
+                    appStatsData[port_type].ipTypeGRE++;
+                    break;
+                }
+                case 0x89: {
+                    // Key
+                    netstatHashKeyData.proto = 0x89;
+                    appStatsData[port_type].ipTypeOSPF++;
+                    break;
+                }
+                default: {
+                    appStatsData[port_type].ipTypeUNKNOWN++;
+                    break;
+                }
+            }
+            // NETSTAT
+            int ret = rte_hash_lookup(NETSTAT, (void *) &netstatHashKeyData);
+            if (ret < 0) {
+                ret = rte_hash_add_key(NETSTAT, (void *) &netstatHashKeyData);
+                if (ret >= 0) {
+                    netstatStats.counts++;
+                    netstatData[ret].key = netstatHashKeyData;
+                    netstatData[ret].status = 1;
+                    netstatData[ret].srcIP = netstatHashKeyData.srcIP;
+                    netstatData[ret].dstIP = netstatHashKeyData.dstIP;
+                    netstatData[ret].proto = netstatHashKeyData.proto;
+                    netstatData[ret].srcPort = netstatHashKeyData.srcPort;
+                    netstatData[ret].dstPort = netstatHashKeyData.dstPort;
+                    netstatData[ret].inPort = portid;
+                    netstatData[ret].outPort = get_outport(portid);
+                    netstatData[ret].lastPktTime = lastPktTime;
+                    push(&head, ret);
+                }
+            } else {
+                netstatStats.hits++;
+                netstatData[ret].lastPktTime = lastPktTime;
+            }
+
+            break;
+        }
+        default: {
+            appStatsData[port_type].ethTypeUNKNOWN++;
+            break;
+        }
+    }
+    return;
+}
+
+void handle_packets(struct rte_mbuf **pkts, uint16_t nb_pkts, uint16_t portid, uint64_t lastPktTime,
+                    PORT_TYPE port_type) {
+    for (uint8_t i = 0; i < nb_pkts; i++) {
+        dpi(pkts[i], portid, lastPktTime, port_type);
+    }
+}
+
 static inline void
 process_pkts(struct lcore_conf *qconf, struct rte_mbuf **pkts,
              uint16_t nb_pkts, uint16_t portid, void *ctx) {
@@ -749,6 +1109,8 @@ ipsec_poll_mode_worker(void) {
                                      pkts, MAX_PKT_BURST);
 
             if (nb_rx > 0) {
+                uint64_t lastPktTime = rte_get_tsc_cycles() / rte_get_timer_hz();
+                handle_packets(pkts, nb_rx, portid, lastPktTime, portid);
                 core_stats_update_rx(nb_rx);
                 process_pkts(qconf, pkts, nb_rx, portid,
                              rxql->sec_ctx);
@@ -839,7 +1201,7 @@ get_port_nb_rx_queues(const uint16_t port) {
             lcore_params[i].queue_id > queue)
             queue = lcore_params[i].queue_id;
     }
-    return (uint16_t)(++queue);
+    return (uint16_t) (++queue);
 }
 
 static int32_t
@@ -1415,8 +1777,7 @@ check_all_ports_link_status(uint32_t port_mask) {
     fflush(stdout);
     for (count = 0; count <= MAX_CHECK_TIME; count++) {
         all_ports_up = 1;
-        RTE_ETH_FOREACH_DEV(portid)
-        {
+        RTE_ETH_FOREACH_DEV(portid) {
             if ((port_mask & (1 << portid)) == 0)
                 continue;
             memset(&link, 0, sizeof(link));
@@ -1665,13 +2026,13 @@ cryptodevs_init(enum eh_pkt_transfer_mode mode) {
     cdev_map_in = rte_hash_create(&params);
     if (cdev_map_in == NULL)
         rte_panic("Failed to create cdev_map hash table, errno = %d\n",
-                  rte_errno);
+              rte_errno);
 
     params.name = "cdev_map_out";
     cdev_map_out = rte_hash_create(&params);
     if (cdev_map_out == NULL)
         rte_panic("Failed to create cdev_map hash table, errno = %d\n",
-                  rte_errno);
+              rte_errno);
 
     printf("lcore/cryptodev/qp mappings:\n");
 
@@ -1713,7 +2074,7 @@ cryptodevs_init(enum eh_pkt_transfer_mode mode) {
 
         if (rte_cryptodev_configure(cdev_id, &dev_conf))
             rte_panic("Failed to initialize cryptodev %u\n",
-                      cdev_id);
+                  cdev_id);
 
         qp_conf.nb_descriptors = qp_desc_nb;
         qp_conf.mp_session =
@@ -1722,11 +2083,11 @@ cryptodevs_init(enum eh_pkt_transfer_mode mode) {
             if (rte_cryptodev_queue_pair_setup(cdev_id, qp,
                                                &qp_conf, dev_conf.socket_id))
                 rte_panic("Failed to setup queue %u for "
-                          "cdev_id %u\n", 0, cdev_id);
+                      "cdev_id %u\n", 0, cdev_id);
 
         if (rte_cryptodev_start(cdev_id))
             rte_panic("Failed to start cryptodev %u\n",
-                      cdev_id);
+                  cdev_id);
     }
 
     printf("\n");
@@ -1863,7 +2224,7 @@ parse_ptype_cb(uint16_t port __rte_unused, uint16_t queue __rte_unused,
     rte_prefetch0(rte_pktmbuf_mtod(pkts[0], struct ether_hdr *));
     for (i = 0; i < (unsigned int) (nb_pkts - 1); ++i) {
         rte_prefetch0(rte_pktmbuf_mtod(pkts[i + 1],
-			struct ether_hdr *));
+                                       struct ether_hdr *));
         parse_ptype(pkts[i]);
     }
     parse_ptype(pkts[i]);
@@ -1916,7 +2277,7 @@ port_init(uint16_t portid, uint64_t req_rx_offloads, uint64_t req_tx_offloads,
     printf("\n");
 
     nb_rx_queue = get_port_nb_rx_queues(portid);
-    nb_tx_queue = nb_lcores;
+    nb_tx_queue = 1; // nb_lcores;
 
     if (nb_rx_queue > dev_info.max_rx_queues)
         rte_exit(EXIT_FAILURE, "Error: queue %u not available "
@@ -2020,7 +2381,7 @@ port_init(uint16_t portid, uint64_t req_rx_offloads, uint64_t req_tx_offloads,
         qconf = &lcore_conf[lcore_id];
         qconf->tx_queue_id[portid] = tx_queueid;
 
-        tx_queueid++;
+        // tx_queueid++;
 
         /* init RX queues */
         for (queue = 0; queue < qconf->nb_rx_queue; ++queue) {
@@ -2096,8 +2457,7 @@ max_session_size(void) {
             max_sz = sz;
     }
 
-    RTE_ETH_FOREACH_DEV(port_id)
-    {
+    RTE_ETH_FOREACH_DEV(port_id) {
         if ((enabled_port_mask & (1 << port_id)) == 0)
             continue;
 
@@ -2124,7 +2484,7 @@ session_pool_init(struct socket_ctx *ctx, int32_t socket_id, size_t sess_sz) {
     nb_sess = (get_nb_crypto_sessions() + CDEV_MP_CACHE_SZ *
                rte_lcore_count());
     nb_sess = RTE_MAX(nb_sess, CDEV_MP_CACHE_SZ *
-                               CDEV_MP_CACHE_MULTIPLIER);
+                      CDEV_MP_CACHE_MULTIPLIER);
     sess_mp = rte_cryptodev_sym_session_pool_create(
         mp_name, nb_sess, sess_sz, CDEV_MP_CACHE_SZ,
         0, socket_id);
@@ -2247,7 +2607,7 @@ rx_callback(__rte_unused uint16_t port, __rte_unused uint16_t queue,
                 if (mb != NULL) {
                     /* fix ip cksum after reassemble. */
                     iph = rte_pktmbuf_mtod_offset(mb,
-						struct rte_ipv4_hdr *,
+                                                  struct rte_ipv4_hdr *,
                                                   mb->l2_len);
                     iph->hdr_checksum = 0;
                     iph->hdr_checksum = rte_ipv4_cksum(iph);
@@ -2388,6 +2748,8 @@ signal_handler(int signum) {
         printf("\n\nSignal %d received, preparing to exit...\n",
                signum);
         force_quit = true;
+        nats_running = 0;
+        exit(1);
     }
 }
 
@@ -2455,8 +2817,7 @@ check_event_mode_params(struct eh_conf *eh_conf) {
 	 * modes initialize lcore_params with one queue for each eth port
 	 */
     lcore_params = lcore_params_array;
-    RTE_ETH_FOREACH_DEV(portid)
-    {
+    RTE_ETH_FOREACH_DEV(portid) {
         if ((enabled_port_mask & (1 << portid)) == 0)
             continue;
 
@@ -2512,8 +2873,8 @@ sessions_free(struct sa_ctx *sa_ctx) {
         ret = one_session_free(ips);
         if (ret)
             RTE_LOG(ERR, IPSEC, "Failed to destroy security "
-                    "session type %d, spi %d\n",
-                    ips->type, sa->spi);
+                "session type %d, spi %d\n",
+                ips->type, sa->spi);
     }
 }
 
@@ -2521,12 +2882,12 @@ static uint32_t
 calculate_nb_mbufs(uint16_t nb_ports, uint16_t nb_crypto_qp, uint32_t nb_rxq,
                    uint32_t nb_txq) {
     return RTE_MAX((nb_rxq * nb_rxd +
-                    nb_ports * nb_lcores * MAX_PKT_BURST +
-                    nb_ports * nb_txq * nb_txd +
-                    nb_lcores * MEMPOOL_CACHE_SIZE +
-                    nb_crypto_qp * qp_desc_nb +
-                    nb_lcores * frag_tbl_sz *
-                    FRAG_TBL_BUCKET_ENTRIES),
+                       nb_ports * nb_lcores * MAX_PKT_BURST +
+                       nb_ports * nb_txq * nb_txd +
+                       nb_lcores * MEMPOOL_CACHE_SIZE +
+                       nb_crypto_qp * qp_desc_nb +
+                       nb_lcores * frag_tbl_sz *
+                       FRAG_TBL_BUCKET_ENTRIES),
                    8192U);
 }
 
@@ -2917,8 +3278,7 @@ main(int32_t argc, char **argv) {
     nb_crypto_qp = cryptodevs_init(eh_conf->mode);
 
     if (nb_bufs_in_pool == 0) {
-        RTE_ETH_FOREACH_DEV(portid)
-        {
+        RTE_ETH_FOREACH_DEV(portid) {
             if ((enabled_port_mask & (1 << portid)) == 0)
                 continue;
             nb_ports++;
@@ -2941,8 +3301,7 @@ main(int32_t argc, char **argv) {
             socket_id = 0;
 
         if (per_port_pool) {
-            RTE_ETH_FOREACH_DEV(portid)
-            {
+            RTE_ETH_FOREACH_DEV(portid) {
                 if ((enabled_port_mask & (1 << portid)) == 0)
                     continue;
 
@@ -2961,8 +3320,7 @@ main(int32_t argc, char **argv) {
     }
     printf("Number of mbufs in packet pool %d\n", nb_bufs_in_pool);
 
-    RTE_ETH_FOREACH_DEV(portid)
-    {
+    RTE_ETH_FOREACH_DEV(portid) {
         if ((enabled_port_mask & (1 << portid)) == 0)
             continue;
 
@@ -2981,8 +3339,7 @@ main(int32_t argc, char **argv) {
         tx_offloads.ipv4_offloads |= RTE_MBUF_F_TX_IP_CKSUM;
 
     lcore_id = 0;
-    RTE_LCORE_FOREACH(lcore_id)
-    {
+    RTE_LCORE_FOREACH(lcore_id) {
         /* Pre-populate pkt offloads based on capabilities */
         lcore_conf[lcore_id].outbound.ipv4_offloads = tx_offloads.ipv4_offloads;
         lcore_conf[lcore_id].outbound.ipv6_offloads = tx_offloads.ipv6_offloads;
@@ -3001,8 +3358,7 @@ main(int32_t argc, char **argv) {
         rte_exit(EXIT_FAILURE, "eh_devs_init failed, err=%d\n", ret);
 
     /* start ports */
-    RTE_ETH_FOREACH_DEV(portid)
-    {
+    RTE_ETH_FOREACH_DEV(portid) {
         if ((enabled_port_mask & (1 << portid)) == 0)
             continue;
 
@@ -3075,6 +3431,9 @@ skip_sec_ctx:
 
     check_all_ports_link_status(enabled_port_mask);
 
+    MyHashesSetup();
+    init_mongo_connection();
+
     if (stats_interval > 0)
         rte_eal_alarm_set(stats_interval * US_PER_S,
                           print_stats_cb, NULL);
@@ -3083,8 +3442,7 @@ skip_sec_ctx:
 
     /* launch per-lcore init on every lcore */
     rte_eal_mp_remote_launch(ipsec_launch_one_lcore, eh_conf, CALL_MAIN);
-    RTE_LCORE_FOREACH_WORKER(lcore_id)
-    {
+    RTE_LCORE_FOREACH_WORKER(lcore_id) {
         if (rte_eal_wait_lcore(lcore_id) < 0)
             return -1;
     }
@@ -3113,8 +3471,7 @@ skip_sec_ctx:
 
     flow_print_counters();
 
-    RTE_ETH_FOREACH_DEV(portid)
-    {
+    RTE_ETH_FOREACH_DEV(portid) {
         if ((enabled_port_mask & (1 << portid)) == 0)
             continue;
 
@@ -3126,14 +3483,14 @@ skip_sec_ctx:
                                    flow_info_tbl[portid].rx_def_flow, &err);
             if (ret)
                 RTE_LOG(ERR, IPSEC, "Failed to destroy flow "
-                        " for port %u, err msg: %s\n", portid,
-                        err.message);
+                    " for port %u, err msg: %s\n", portid,
+                    err.message);
         }
         ret = rte_eth_dev_stop(portid);
         if (ret != 0)
             RTE_LOG(ERR, IPSEC,
-                    "rte_eth_dev_stop: err=%s, port=%u\n",
-                    rte_strerror(-ret), portid);
+                "rte_eth_dev_stop: err=%s, port=%u\n",
+                rte_strerror(-ret), portid);
 
         rte_eth_dev_close(portid);
         printf(" Done\n");
@@ -3141,6 +3498,7 @@ skip_sec_ctx:
 
     /* clean up the EAL */
     rte_eal_cleanup();
+    cleanup_mongo();
     printf("Bye...\n");
 
     return 0;

@@ -107,6 +107,15 @@ struct __rte_cache_aligned ipsec_core_statistics {
     uint64_t frag_dropped;
     uint64_t burst_rx;
 
+    uint64_t rx_bytes;
+    uint64_t tx_bytes;
+    uint64_t rx_bytes_old;
+    uint64_t tx_bytes_old;
+    char rxBytesNormalized[32];
+    char txBytesNormalized[32];
+    float rxRate;
+    float txRate;
+
     struct {
         struct ipsec_spd_stats spd4;
         struct ipsec_spd_stats spd6;

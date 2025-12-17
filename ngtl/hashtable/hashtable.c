@@ -10,8 +10,7 @@ struct rte_hash_parameters NETSTAT_params0 = {
 };
 struct rte_hash *NETSTAT;
 
-void MyHashesSetup(void)
-{
+void MyHashesSetup(void) {
     NETSTAT = rte_hash_create(&NETSTAT_params0);
     if (NETSTAT == NULL) {
         printf("NETSTAT Memory Allocation Failed in hashsetup.c\n");

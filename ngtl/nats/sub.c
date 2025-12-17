@@ -13,8 +13,7 @@ char ike_string_count;
 
 volatile int nats_running = 1;
 
-static void parse_json_message(const char *json)
-{
+static void parse_json_message(const char *json) {
     cJSON *root = cJSON_Parse(json);
     if (!root) {
         printf("Invalid JSON: %s\n", json);
@@ -37,8 +36,8 @@ static void parse_json_message(const char *json)
 
     cJSON_Delete(root);
 }
-void onMsg(natsConnection *conn, natsSubscription *sub, natsMsg *msg, void *closure)
-{
+
+void onMsg(natsConnection *conn, natsSubscription *sub, natsMsg *msg, void *closure) {
     const char *subject = natsMsg_GetSubject(msg);
     const char *data = natsMsg_GetData(msg);
     printf("Received on [%s]: %s\n", subject, data);
@@ -50,8 +49,7 @@ void onMsg(natsConnection *conn, natsSubscription *sub, natsMsg *msg, void *clos
     natsMsg_Destroy(msg);
 }
 
-void *subscriber_thread(void *arg)
-{
+void *subscriber_thread(void *arg) {
     natsConnection *conn = NULL;
     natsOptions *opts = NULL;
     natsSubscription *sub = NULL;

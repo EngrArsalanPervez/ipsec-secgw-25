@@ -12,7 +12,9 @@
 // #define DUMP_PCAP
 
 void open_pcap_file(const char *filename);
+
 void dump_packet(struct rte_mbuf *pkt);
+
 void print_mbuf_hex(const char *title, struct rte_mbuf *m);
 
 #endif

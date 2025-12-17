@@ -3,8 +3,7 @@
 static pcap_dumper_t *pcap_dumper;
 static pcap_t *pcap_handle;
 
-void open_pcap_file(const char *filename)
-{
+void open_pcap_file(const char *filename) {
     char errbuf[PCAP_ERRBUF_SIZE];
 
     // Open a pcap file for packet capture (not for dumping)
@@ -21,9 +20,9 @@ void open_pcap_file(const char *filename)
         exit(1);
     }
 }
+
 /* Function to process and dump packets to pcap */
-void dump_packet(struct rte_mbuf *pkt)
-{
+void dump_packet(struct rte_mbuf *pkt) {
     struct pcap_pkthdr header;
     uint8_t *packet_data;
 
@@ -37,11 +36,10 @@ void dump_packet(struct rte_mbuf *pkt)
     header.len = pkt->pkt_len;
 
     // Dump the packet to pcap
-    pcap_dump((u_char *)pcap_dumper, &header, packet_data);
+    pcap_dump((u_char *) pcap_dumper, &header, packet_data);
 }
 
-void print_mbuf_hex(const char *title, struct rte_mbuf *m)
-{
+void print_mbuf_hex(const char *title, struct rte_mbuf *m) {
     struct rte_mbuf *seg = m;
     unsigned seg_idx = 0;
 

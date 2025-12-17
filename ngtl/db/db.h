@@ -24,6 +24,7 @@ struct interfaceStatsStruct {
     char rxRate[32];
     char txRate[32];
 };
+
 struct deviceStatsStruct {
     uint64_t totalPktsReceived;
     uint64_t totalPktsSent;
@@ -35,12 +36,17 @@ struct deviceStatsStruct {
 };
 
 void cleanup_mongo(void);
+
 void init_mongo_connection(void);
 
 void updateTimeToDB(struct appTimeStruct *appTime);
+
 void updateAppStatsToDB(void);
+
 void updateInterfaceStatsToDB(struct interfaceStatsStruct *interfaceStatsData, uint8_t portid);
+
 void updateDeviceStatsToDB(struct deviceStatsStruct *deviceStatsData);
+
 void insertNetstatToDB(struct netstatStruct *netstatData);
 
 #endif

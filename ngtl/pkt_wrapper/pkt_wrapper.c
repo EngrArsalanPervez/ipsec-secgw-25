@@ -4,8 +4,7 @@
 struct rte_mbuf *prepend_eth_ip_manual(struct rte_mbuf *orig, struct rte_mempool *pool,
                                        const struct rte_ether_addr *src_mac,
                                        const struct rte_ether_addr *dst_mac, uint32_t src_ip,
-                                       uint32_t dst_ip)
-{
+                                       uint32_t dst_ip) {
     const uint16_t hdr_len = sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr);
     const uint16_t orig_len = rte_pktmbuf_pkt_len(orig);
     const uint16_t total_len = hdr_len + orig_len;
@@ -29,13 +28,13 @@ struct rte_mbuf *prepend_eth_ip_manual(struct rte_mbuf *orig, struct rte_mempool
     rte_memcpy(data + hdr_len, rte_pktmbuf_mtod(orig, void *), orig_len);
 
     // Build Ethernet header
-    struct rte_ether_hdr *eth_hdr = (struct rte_ether_hdr *)data;
+    struct rte_ether_hdr *eth_hdr = (struct rte_ether_hdr *) data;
     rte_ether_addr_copy(dst_mac, &eth_hdr->dst_addr);
     rte_ether_addr_copy(src_mac, &eth_hdr->src_addr);
     eth_hdr->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
 
     // Build IPv4 header
-    struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+    struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *) (eth_hdr + 1);
     ip_hdr->version_ihl = RTE_IPV4_VHL_DEF;
     ip_hdr->type_of_service = 0;
     ip_hdr->total_length = rte_cpu_to_be_16(total_len - sizeof(struct rte_ether_hdr));
@@ -51,8 +50,7 @@ struct rte_mbuf *prepend_eth_ip_manual(struct rte_mbuf *orig, struct rte_mempool
 }
 
 void encapsulate_pkt(struct rte_mbuf **pkts, uint8_t nb_pkts, struct rte_mempool *pool,
-                     uint16_t portid)
-{
+                     uint16_t portid) {
     for (uint8_t i = 0; i < nb_pkts; i++) {
         struct rte_mbuf *new_m = prepend_eth_ip_manual(pkts[i], pool, &active_rules[portid].src_mac,
                                                        &active_rules[portid].dst_mac,
@@ -74,8 +72,7 @@ void encapsulate_pkt(struct rte_mbuf **pkts, uint8_t nb_pkts, struct rte_mempool
 }
 
 // --- Remove outer Ethernet + IPv4 headers ---
-struct rte_mbuf *remove_eth_ip_headers(struct rte_mbuf *m)
-{
+struct rte_mbuf *remove_eth_ip_headers(struct rte_mbuf *m) {
     const uint16_t hdr_len = sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr);
 
     if (rte_pktmbuf_data_len(m) < hdr_len) {
@@ -93,8 +90,7 @@ struct rte_mbuf *remove_eth_ip_headers(struct rte_mbuf *m)
 }
 
 // --- Decapsulation wrapper ---
-void decapsulate_pkt(struct rte_mbuf **pkts, uint8_t nb_pkts)
-{
+void decapsulate_pkt(struct rte_mbuf **pkts, uint8_t nb_pkts) {
     for (uint8_t i = 0; i < nb_pkts; i++) {
         struct rte_mbuf *inner = remove_eth_ip_headers(pkts[i]);
         if (inner == NULL) {
