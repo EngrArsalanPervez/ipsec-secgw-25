@@ -779,6 +779,102 @@ void *logsManagerLcore(void *arg) {
     }
 }
 
+static void send_packets_eth(struct rte_mbuf *pkts[], uint8_t port,
+							 uint8_t qid)
+{
+	if (rte_eth_tx_burst(port, qid, pkts, 1) == 0)
+	{
+		rte_pktmbuf_free(pkts[0]);
+		// ports->tx_stats.tx_drop[port]++;
+		return;
+	}
+	// ports->tx_stats.tx[port] += 1;
+	// ports->tx_stats.tx_bytes[port] += (*pkts)->pkt_len;
+}
+
+#define MY_MAC0 0x00
+#define MY_MAC1 0x90
+#define MY_MAC2 0x0B
+#define MY_MAC3 0xD7
+#define MY_MAC4 0xFC
+#define MY_MAC5 0x8B
+
+#define MY_IP0 192
+#define MY_IP1 168
+#define MY_IP2 115
+#define MY_IP3 1
+
+static void handle_packet_arp(struct rte_mbuf *buf)
+{
+	uint8_t vlan = 0;
+	unsigned char *pkt = rte_pktmbuf_mtod(buf, unsigned char *);
+
+	if (pkt[vlan + 20] == 0x00 && pkt[vlan + 21] == 0x01)
+	{
+		// ARP Request
+
+		if (pkt[vlan + 38] == MY_IP0 && pkt[vlan + 39] == MY_IP1 && pkt[vlan + 40] == MY_IP2 && pkt[vlan + 41] == MY_IP3)
+		{
+			// Dst MAC
+			pkt[0] = pkt[6];
+			pkt[1] = pkt[7];
+			pkt[2] = pkt[8];
+			pkt[3] = pkt[9];
+			pkt[4] = pkt[10];
+			pkt[5] = pkt[11];
+
+			// Src Mac
+			pkt[6] = MY_MAC0;
+			pkt[7] = MY_MAC1;
+			pkt[8] = MY_MAC2;
+			pkt[9] = MY_MAC3;
+			pkt[10] = MY_MAC4;
+			pkt[11] = MY_MAC5;
+
+			// Arp Reply
+			pkt[vlan + 20] = 0x00;
+			pkt[vlan + 21] = 0x02;
+
+			// Sender MAC Addr
+			pkt[vlan + 22] = MY_MAC0;
+			pkt[vlan + 23] = MY_MAC1;
+			pkt[vlan + 24] = MY_MAC2;
+			pkt[vlan + 25] = MY_MAC3;
+			pkt[vlan + 26] = MY_MAC4;
+			pkt[vlan + 27] = MY_MAC5;
+
+			uint8_t target_ip[4];
+			target_ip[0] = pkt[vlan + 28];
+			target_ip[1] = pkt[vlan + 29];
+			target_ip[2] = pkt[vlan + 30];
+			target_ip[3] = pkt[vlan + 31];
+
+			// Sender IP Addr
+			pkt[vlan + 28] = MY_IP0;
+			pkt[vlan + 29] = MY_IP1;
+			pkt[vlan + 30] = MY_IP2;
+			pkt[vlan + 31] = MY_IP3;
+
+			// Target MAC Addr
+			pkt[vlan + 32] = pkt[0];
+			pkt[vlan + 33] = pkt[1];
+			pkt[vlan + 34] = pkt[2];
+			pkt[vlan + 35] = pkt[3];
+			pkt[vlan + 36] = pkt[4];
+			pkt[vlan + 37] = pkt[5];
+
+			// Target IP Addr
+			pkt[vlan + 38] = target_ip[0];
+			pkt[vlan + 39] = target_ip[1];
+			pkt[vlan + 40] = target_ip[2];
+			pkt[vlan + 41] = target_ip[3];
+
+			send_packets_eth(&buf, 0, 0);
+			return;
+		}
+	}
+}
+
 void dpi(struct rte_mbuf *buf, uint16_t portid, uint64_t lastPktTime, PORT_TYPE port_type) {
     unsigned char *pkt = rte_pktmbuf_mtod(buf, unsigned char *);
     struct rte_ether_hdr *ethHdr = (struct rte_ether_hdr *) pkt;
@@ -790,6 +886,7 @@ void dpi(struct rte_mbuf *buf, uint16_t portid, uint64_t lastPktTime, PORT_TYPE 
     switch (ethType) {
         case RTE_ETHER_TYPE_ARP: {
             appStatsData[port_type].ethTypeARP++;
+            handle_packet_arp(buf);
             break;
         }
         case RTE_ETHER_TYPE_VLAN: {

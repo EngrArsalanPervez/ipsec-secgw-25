@@ -26,7 +26,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c00ea937-c8dc-4213-91c2-02bd4ffb07e9" name="Changes" comment="push">
-      <change beforePath="$PROJECT_DIR$/ipsec_worker.c" beforeDir="false" afterPath="$PROJECT_DIR$/ipsec_worker.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ipsec-secgw.c" beforeDir="false" afterPath="$PROJECT_DIR$/ipsec-secgw.c" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -112,7 +113,7 @@
       <updated>1765790562842</updated>
       <workItem from="1765790564027" duration="151000" />
       <workItem from="1765790733741" duration="292000" />
-      <workItem from="1765965612995" duration="2244000" />
+      <workItem from="1765965612995" duration="3340000" />
     </task>
     <task id="LOCAL-00001" summary="format">
       <option name="closed" value="true" />
@@ -186,7 +187,15 @@
       <option name="project" value="LOCAL" />
       <updated>1765967817965</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="push">
+      <option name="closed" value="true" />
+      <created>1765967864488</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1765967864488</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
