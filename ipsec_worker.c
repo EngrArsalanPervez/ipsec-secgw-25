@@ -965,7 +965,7 @@ ipsec_ev_vector_process(struct lcore_conf_ev_tx_int_port_wrkr *lconf,
                                                &lconf->rt, vec, links);
 
     if (likely(ret > 0)) {
-        core_stats_update_tx(vec->nb_elem);
+        core_stats_update_tx(vec->nb_elem, NULL);
         vec->nb_elem = ret;
         ret = rte_event_eth_tx_adapter_enqueue(links[0].eventdev_id,
                                                links[0].event_port_id, ev, 1, 0);
