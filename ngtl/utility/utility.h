@@ -22,5 +22,5 @@
 void bytesNormalize(uint64_t bytes, char *string);
 void dec2IP(uint32_t dec, char *ip);
 const char *getDateTimeWithTimezone(void);
-void get_date_time();
+void get_date_time(char *dateTime);
 #endif

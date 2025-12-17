@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern char ike_string[2][1024];
-extern char ike_string_count;
+char ike_string[2][1024];
+char ike_string_count;
 
 volatile int nats_running = 1;
 
